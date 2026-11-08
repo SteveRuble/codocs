@@ -1,37 +1,29 @@
 import cors from "cors";
-import express, { type ErrorRequestHandler, type Express } from "express";
-import { config } from "./config.js";
+import express, { type Express } from "express";
+import helmet from "helmet";
+import type { AppDeps } from "./deps.js";
+import { errorHandler } from "./http/middleware/errorHandler.js";
+import { notFoundHandler } from "./http/middleware/notFound.js";
+import { requestLogger } from "./http/middleware/requestLogger.js";
+import { createHealthRouter } from "./modules/health/health.router.js";
 
-// The app is built by a factory function, separate from server.ts which calls
-// listen(). That split lets tests import the app without opening a port.
-export function createApp(): Express {
+// Builds the Express app from its dependencies. It never calls listen() and never reads
+// the environment, so tests construct it with fakes and drive it with supertest.
+// This file is the one place that shows the full middleware order.
+export function createApp(deps: AppDeps): Express {
   const app = express();
 
-  // --- Middleware: runs top-to-bottom for every request, in registration order ---
-  app.use(cors({ origin: config.webOrigin })); // lets the Next.js app call us from the browser
-  app.use(express.json()); // parses JSON bodies into req.body
+  // Middleware runs in registration order.
+  app.use(requestLogger(deps.logger)); // first: everything after gets req.log and a request id
+  app.use(helmet()); // security headers; also removes X-Powered-By
+  app.use(cors({ origin: deps.config.webOrigin })); // allow the Next.js frontend only
+  app.use(express.json({ limit: "100kb" })); // parse JSON bodies; cap the size
 
-  // --- Routes ---
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString() });
-  });
+  // Feature routers. Each module owns its routes; app.ts only decides the URL prefix.
+  app.use("/health", createHealthRouter(deps));
 
-  // --- 404: reached only if no route above ended the request ---
-  app.use((req, res) => {
-    res.status(404).json({
-      error: { code: "not_found", message: `No route for ${req.method} ${req.path}` },
-    });
-  });
-
-  // --- Error handler: Express recognises it by its 4 arguments. Must be LAST. ---
-  // Express 5 forwards rejected promises / thrown errors from async handlers here.
-  const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-    console.error(err);
-    res.status(500).json({
-      error: { code: "internal_error", message: "Something went wrong" },
-    });
-  };
-  app.use(errorHandler);
+  app.use(notFoundHandler); // nothing matched
+  app.use(errorHandler); // must be last
 
   return app;
 }

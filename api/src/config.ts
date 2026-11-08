@@ -1,16 +1,34 @@
-// All environment access lives here. The rest of the app imports `config`
-// and never touches process.env directly, so config is typed and validated once.
+import { z } from "zod";
 
-function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  if (value === undefined || value === "") {
-    throw new Error(`Missing required environment variable: ${name}`);
+// Environment variables are untyped strings from outside the process: parse them
+// once, at startup, into a typed immutable object. Nothing else reads process.env.
+//
+// There are deliberately no defaults for WEB_ORIGIN or DATABASE_URL: a missing value
+// in production should stop the process, not silently point at a dev database.
+// For local dev, copy .env.example to .env.
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  PORT: z.coerce.number().int().min(0).max(65535).default(4000),
+  WEB_ORIGIN: z.url(),
+  DATABASE_URL: z.string().min(1),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+});
+
+// A pure function of its input (the env object is a parameter), so tests can call
+// loadConfig({...}) with whatever they want instead of mutating process.env.
+export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
+  const result = envSchema.safeParse(env);
+  if (!result.success) {
+    throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);
   }
-  return value;
+  const e = result.data;
+  return Object.freeze({
+    nodeEnv: e.NODE_ENV,
+    port: e.PORT,
+    webOrigin: e.WEB_ORIGIN,
+    databaseUrl: e.DATABASE_URL,
+    logLevel: e.LOG_LEVEL,
+  });
 }
 
-export const config = {
-  port: Number(required("PORT", "4000")),
-  webOrigin: required("WEB_ORIGIN", "http://localhost:3000"),
-  isProduction: process.env.NODE_ENV === "production",
-} as const;
+export type Config = ReturnType<typeof loadConfig>;

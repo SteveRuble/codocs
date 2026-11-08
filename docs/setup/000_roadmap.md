@@ -20,14 +20,15 @@ docs/setup/   one doc per step
 |---|-------|--------------|
 | 001 | Project scaffold | TS config for Node, Express app/server split, middleware order, 404 + error handler |
 | 002 | Prisma setup | Install, `schema.prisma`, datasource, generator, client, SQLite dev DB |
-| 003 | Data model | Models, relations, indexes, enums, migrations (`migrate dev`) |
-| 004 | Request validation + error handling | Zod, a typed `HttpError`, async handlers, consistent error shape |
-| 005 | Auth middleware | JWT (Bearer) verification, `req.user`, upserting users, protected routers |
-| 006 | Documents: upload + list | `multer`, create, `findMany`, `select`/`include`, `_count` |
-| 007 | Documents: view one | `findUnique`, 404 handling, path params, ownership/visibility |
-| 008 | Comments | Nested resource, range validation, relations, transactions |
-| 009 | Tests | `vitest` + `supertest` against the app factory |
-| 010 | Interview drill | Cheat sheet, common questions, how to live-code this from scratch fast |
+| 003 | Application structure | Composition root, dependency injection by hand, feature modules, config validation, logging, graceful shutdown |
+| 004 | Data model | Models, relations, indexes, enums, migrations (`migrate dev`) |
+| 005 | Request validation + error handling | Zod at the boundary, a typed `HttpError`, async handlers, consistent error shape |
+| 006 | Auth middleware | JWT (Bearer) verification, `req.user`, upserting users, protected routers |
+| 007 | Documents: upload + list | `multer`, create, `findMany`, `select`/`include`, `_count` |
+| 008 | Documents: view one | `findUnique`, 404 handling, path params, ownership/visibility |
+| 009 | Comments | Nested resource, range validation, relations, transactions |
+| 010 | Tests | `vitest` + `supertest` against the app factory |
+| 011 | Interview drill | Cheat sheet, common questions, how to live-code this from scratch fast |
 
 (Order may shift if something deserves more depth.)
 

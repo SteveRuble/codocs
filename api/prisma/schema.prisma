@@ -1,0 +1,16 @@
+// Prisma schema: the single source of truth for the database.
+// `prisma generate` reads this and writes a typed client to src/generated/prisma.
+// `prisma migrate dev` diffs this against the DB and writes SQL into prisma/migrations.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// The datasource has no URL here. Prisma 7 moved connection config to prisma.config.ts,
+// and the runtime URL is passed to the driver adapter in src/db.ts.
+datasource db {
+  provider = "sqlite"
+}
+
+// Models are added in step 003.
