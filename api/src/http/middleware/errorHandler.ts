@@ -1,27 +1,13 @@
 import type { ErrorRequestHandler } from "express";
+import { Prisma } from "../../generated/prisma/client.js";
+import { HttpError } from "../errors.js";
+import { toHttpError } from "../errorMapping.js";
 
-// Errors raised by Express's own middleware (body-parser) carry an HTTP status and a
-// `type`. We map the ones we expect to stable codes and never echo err.message to the
-// client: internals and user-supplied content must not leak into responses.
-// Step 005 adds our own HttpError type to this function.
-const KNOWN_CLIENT_ERRORS: Record<string, { status: number; code: string; message: string }> = {
-  "entity.parse.failed": { status: 400, code: "invalid_json", message: "Request body is not valid JSON" },
-  "entity.too.large": { status: 413, code: "payload_too_large", message: "Request body is too large" },
-};
-
-function bodyParserError(err: unknown): { status: number; code: string; message: string } | undefined {
-  if (typeof err !== "object" || err === null) return undefined;
-  const { type, status } = err as { type?: unknown; status?: unknown };
-  if (typeof type === "string" && type in KNOWN_CLIENT_ERRORS) return KNOWN_CLIENT_ERRORS[type];
-  if (typeof status === "number" && status >= 400 && status < 500) {
-    return { status, code: "bad_request", message: "Bad request" };
-  }
-  return undefined;
-}
-
-// Express identifies error handlers by their four parameters; all four must be declared
-// even if unused. Must be registered last. Express 5 routes thrown errors and rejected
-// promises from async handlers here.
+// The ONLY place an error response is written. Express identifies error handlers by their
+// four parameters; all four must be declared even if unused. Must be registered last.
+// Express 5 routes thrown errors and rejected promises from async handlers here, so
+// route code just throws; no try/catch/next(err) boilerplate and no asyncHandler wrapper
+// (Express 4 needed one, and old tutorials still show it).
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   // If a response is already partially sent we can't change it; defer to Express's
   // default handler, which closes the connection.
@@ -30,15 +16,40 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     return;
   }
 
-  const clientError = bodyParserError(err);
-  if (clientError) {
-    // Log the classification only: body-parser errors carry the raw request body, which
-    // may contain credentials. The access log already records the 4xx status.
-    req.log.debug({ code: clientError.code }, "client error");
-    res.status(clientError.status).json({ error: { code: clientError.code, message: clientError.message } });
+  const requestId = String(req.id);
+  const httpError = toHttpError(err);
+
+  if (httpError && httpError.status < 500) {
+    // Client errors are the client's problem, not ours: debug level only (the access log
+    // already records the status). We log the classification, NOT the error object:
+    // body-parser errors carry the raw request body, which may hold credentials.
+    // Exception: a Prisma error reaching here means a service skipped a check; surface it.
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      req.log.warn({ code: httpError.code, prismaCode: err.code }, "database error mapped to client error");
+    } else if (!(err instanceof HttpError)) {
+      req.log.debug({ code: httpError.code }, "client error");
+    } else {
+      req.log.debug({ code: httpError.code }, "request rejected");
+    }
+    res.status(httpError.status).json({
+      error: {
+        code: httpError.code,
+        message: httpError.message,
+        ...(httpError.details ? { details: httpError.details } : {}),
+        requestId,
+      },
+    });
     return;
   }
 
-  req.log.error({ err }, "unhandled error");
-  res.status(500).json({ error: { code: "internal_error", message: "Something went wrong" } });
+  // 5xx (a bug, an outage, or an HttpError we threw with a 5xx status): log everything,
+  // tell the client nothing but a request id they can quote to us.
+  req.log.error({ err: httpError?.cause ?? err }, "unhandled error");
+  res.status(httpError?.status ?? 500).json({
+    error: {
+      code: "internal_error",
+      message: "Something went wrong",
+      requestId,
+    },
+  });
 };
