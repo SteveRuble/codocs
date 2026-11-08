@@ -15,6 +15,8 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // Run by `prisma db seed` and after `prisma migrate reset`.
+    seed: "tsx --env-file-if-exists=.env prisma/seed.ts",
   },
   datasource: {
     url: isGenerate ? (process.env.DATABASE_URL ?? "file:./unused.db") : env("DATABASE_URL"),

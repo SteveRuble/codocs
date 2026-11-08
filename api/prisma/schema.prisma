@@ -1,6 +1,9 @@
 // Prisma schema: the single source of truth for the database.
 // `prisma generate` reads this and writes a typed client to src/generated/prisma.
 // `prisma migrate dev` diffs this against the DB and writes SQL into prisma/migrations.
+//
+// Naming: models are PascalCase singular (the TypeScript API: prisma.document), tables
+// and columns are snake_case plural (the SQL: documents.owner_id) via @@map / @map.
 
 generator client {
   provider = "prisma-client"
@@ -8,9 +11,79 @@ generator client {
 }
 
 // The datasource has no URL here. Prisma 7 moved connection config to prisma.config.ts,
-// and the runtime URL is passed to the driver adapter in src/db.ts.
+// and the runtime URL is passed to the driver adapter in src/infra/db.ts.
 datasource db {
   provider = "sqlite"
 }
 
-// Models are added in step 003.
+/// A person who signed in with GitHub. Rows are created lazily the first time a valid
+/// token for that GitHub account hits the API (step 006).
+model User {
+  id        String   @id @default(cuid(2))
+  /// GitHub's numeric account id, as a string. Stable even if the user renames themselves,
+  /// so it, not `login`, is the identity key.
+  githubId  String   @unique @map("github_id")
+  /// GitHub username. Mutable on GitHub, so refreshed on each sign-in.
+  login     String
+  name      String?
+  email     String?
+  image     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  documents Document[]
+  comments  Comment[]
+
+  @@map("users")
+}
+
+/// An uploaded text document. Immutable after upload in this app, so there is no
+/// versioning; `content` is stored in the row.
+model Document {
+  id        String   @id @default(cuid(2))
+  title     String
+  /// Original upload name, for display only. Never used as a filesystem path.
+  filename  String
+  content   String
+  /// Denormalised count of lines in `content`, computed once at upload. The list endpoint
+  /// needs it for every row, and recomputing would mean loading every document's content.
+  /// Invariant: set only by the upload code path, never edited independently.
+  lineCount Int      @map("line_count")
+  ownerId   String   @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // A user who owns documents can't be deleted until those are handled (Restrict is the
+  // default for required relations; stated explicitly so the intent is visible).
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  comments Comment[]
+
+  // Foreign keys are not indexed automatically in SQLite (or Postgres). This serves
+  // "documents owned by X". The list endpoint sorts newest first.
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("documents")
+}
+
+/// A comment anchored to an inclusive, 1-indexed range of lines in a document.
+/// A single-line comment has startLine == endLine.
+model Comment {
+  id         String   @id @default(cuid(2))
+  documentId String   @map("document_id")
+  authorId   String   @map("author_id")
+  startLine  Int      @map("start_line")
+  endLine    Int      @map("end_line")
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Deleting a document deletes its comments: they have no meaning without it.
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  // Serves "comments for this document, in line order" with one index scan. The leading
+  // column also covers plain lookups by documentId.
+  @@index([documentId, startLine])
+  @@index([authorId])
+  @@map("comments")
+}

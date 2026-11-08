@@ -1,0 +1,10 @@
+{
+  // Production build: only src/, compiled to dist/ (dist/server.js is the entry point).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

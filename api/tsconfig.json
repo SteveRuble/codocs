@@ -1,12 +1,13 @@
 {
+  // Used by the editor and `npm run typecheck`: covers everything we author, emits nothing.
+  // tsconfig.build.json narrows this to src/ and emits to dist/.
   "compilerOptions": {
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2023"],
     "types": ["node"],
-    "rootDir": "src",
-    "outDir": "dist",
+    "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -15,5 +16,5 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src", "prisma/seed.ts", "prisma.config.ts"]
 }
