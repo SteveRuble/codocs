@@ -1,0 +1,14 @@
+{
+  "name": "codocs",
+  "private": true,
+  "description": "Root convenience scripts. api/ and web/ are independent npm projects.",
+  "scripts": {
+    "install:all": "npm --prefix api install && npm --prefix web install",
+    "dev": "concurrently -k -n api,web -c blue,green \"npm --prefix api run dev\" \"npm --prefix web run dev\"",
+    "build": "npm --prefix api run build && npm --prefix web run build",
+    "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
