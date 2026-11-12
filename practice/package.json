@@ -1,0 +1,35 @@
+{
+  "name": "library-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Practice exercise: Express 4 + Prisma 6 + TypeScript (CommonJS), a small library-lending API",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "express": "^4.22.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "prisma": "^6.19.3",
+    "supertest": "^7.3.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
