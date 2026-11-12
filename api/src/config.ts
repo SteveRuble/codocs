@@ -11,6 +11,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65535).default(4000),
   WEB_ORIGIN: z.url(),
   DATABASE_URL: z.string().min(1),
+  // Shared HS256 key: the Next.js app signs tokens with it and we verify them. Anyone who
+  // knows it can mint a token for any user, so it is required, never defaulted, and must be
+  // long enough to resist guessing. Generate one with:
+  //   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+  API_JWT_SECRET: z.string().min(32, "must be at least 32 characters"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
 });
 
@@ -27,6 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     port: e.PORT,
     webOrigin: e.WEB_ORIGIN,
     databaseUrl: e.DATABASE_URL,
+    jwtSecret: e.API_JWT_SECRET,
     logLevel: e.LOG_LEVEL,
   });
 }

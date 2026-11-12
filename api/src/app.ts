@@ -5,6 +5,7 @@ import type { AppDeps } from "./deps.js";
 import { errorHandler } from "./http/middleware/errorHandler.js";
 import { notFoundHandler } from "./http/middleware/notFound.js";
 import { requestLogger } from "./http/middleware/requestLogger.js";
+import { createApiRouter } from "./modules/api.router.js";
 import { createHealthRouter } from "./modules/health/health.router.js";
 
 // Builds the Express app from its dependencies. It never calls listen() and never reads
@@ -20,7 +21,8 @@ export function createApp(deps: AppDeps): Express {
   app.use(express.json({ limit: "100kb" })); // parse JSON bodies; cap the size
 
   // Feature routers. Each module owns its routes; app.ts only decides the URL prefix.
-  app.use("/health", createHealthRouter(deps));
+  app.use("/health", createHealthRouter(deps)); // public: probes carry no credentials
+  app.use("/api", createApiRouter(deps)); // everything here requires a signed-in user
 
   app.use(notFoundHandler); // nothing matched
   app.use(errorHandler); // must be last

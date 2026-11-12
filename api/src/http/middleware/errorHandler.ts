@@ -29,8 +29,16 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     } else if (!(err instanceof HttpError)) {
       req.log.debug({ code: httpError.code }, "client error");
     } else {
-      req.log.debug({ code: httpError.code }, "request rejected");
+      // For a 401 we DO log why (e.g. "signature verification failed", '"exp" claim timestamp
+      // check failed'): the client is told only "invalid token", so this log is the only way to
+      // debug a misconfigured secret. jose's messages never contain the token or the key.
+      // Other causes are not logged: body-parser's contains the request body.
+      const reason =
+        httpError.status === 401 && httpError.cause instanceof Error ? { reason: httpError.cause.message } : {};
+      req.log.debug({ code: httpError.code, ...reason }, "request rejected");
     }
+    // RFC 9110 requires a 401 to say how to authenticate.
+    if (httpError.status === 401) res.setHeader("WWW-Authenticate", 'Bearer realm="codocs"');
     res.status(httpError.status).json({
       error: {
         code: httpError.code,

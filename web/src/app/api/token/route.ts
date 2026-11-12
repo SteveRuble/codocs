@@ -23,6 +23,8 @@ export async function GET() {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(u.githubId)
+    .setIssuer("codocs-web") // the Express API requires these two; keep in sync with api/src/modules/auth/token.ts
+    .setAudience("codocs-api")
     .setIssuedAt()
     .setExpirationTime(expSeconds)
     .sign(new TextEncoder().encode(secret));

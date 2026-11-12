@@ -55,7 +55,9 @@ export const httpErrors = {
   badRequest: (message: string) => new HttpError(400, "bad_request", message),
   validation: (details: readonly ValidationIssue[]) =>
     new HttpError(400, "validation_failed", "Request validation failed", { details }),
-  unauthorized: (message = "Authentication required") => new HttpError(401, "unauthorized", message),
+  // `cause` keeps the real reason (bad signature? expired?) for our logs without telling the client.
+  unauthorized: (message = "Authentication required", cause?: unknown) =>
+    new HttpError(401, "unauthorized", message, { cause }),
   forbidden: (message = "You do not have access to this resource") => new HttpError(403, "forbidden", message),
   notFound: (resource = "Resource") => new HttpError(404, "not_found", `${resource} not found`),
   conflict: (message: string) => new HttpError(409, "conflict", message),
